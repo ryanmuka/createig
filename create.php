@@ -1,248 +1,96 @@
-<?php 
-error_reporting(0);
-class curl {
-	var $ch, $agent, $error, $info, $cookiefile, $savecookie;	
-	function curl() {
-		$this->ch = curl_init();
-		curl_setopt ($this->ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US) AppleWebKit/530.1 (KHTML, like Gecko) Chrome/2.0.164.0 Safari/530.1');
-		curl_setopt ($this->ch, CURLOPT_HEADER, 1);
-		curl_setopt ($this->ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt ($this->ch, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_setopt ($this->ch, CURLOPT_SSL_VERIFYHOST, 0);
-		curl_setopt ($this->ch, CURLOPT_FOLLOWLOCATION,true);
-		curl_setopt ($this->ch, CURLOPT_TIMEOUT, 30);
-		curl_setopt ($this->ch, CURLOPT_CONNECTTIMEOUT,30);
-	}
-	function header($header) {
-		curl_setopt ($this->ch, CURLOPT_HTTPHEADER, $header);
-	}
-	function timeout($time){
-		curl_setopt ($this->ch, CURLOPT_TIMEOUT, $time);
-		curl_setopt ($this->ch, CURLOPT_CONNECTTIMEOUT,$time);
-	}
-	function http_code() {
-		return curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
-	}
-	function error() {
-		return curl_error($this->ch);
-	}
-	function ssl($veryfyPeer, $verifyHost){
-		curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, $veryfyPeer);
-		curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, $verifyHost);
-	}
-	function cookies($cookie_file_path) {
-		$this->cookiefile = $cookie_file_path;;
-		$fp = fopen($this->cookiefile,'wb');fclose($fp);
-		curl_setopt ($this->ch, CURLOPT_COOKIEJAR, $this->cookiefile);
-		curl_setopt ($this->ch, CURLOPT_COOKIEFILE, $this->cookiefile);
-	}
-	function proxy($sock) {
-		curl_setopt ($this->ch, CURLOPT_HTTPPROXYTUNNEL, true); 
-		curl_setopt ($this->ch, CURLOPT_PROXY, $sock);
-	}
-	function post($url, $data) {
-		curl_setopt($this->ch, CURLOPT_POST, 1);	
-		curl_setopt($this->ch, CURLOPT_POSTFIELDS, $data);
-		return $this->getPage($url);
-	}
-	function data($url, $data, $hasHeader=true, $hasBody=true) {
-		curl_setopt ($this->ch, CURLOPT_POST, 1);
-		curl_setopt ($this->ch, CURLOPT_POSTFIELDS, http_build_query($data));
-		return $this->getPage($url, $hasHeader, $hasBody);
-	}
-	function get($url, $hasHeader=true, $hasBody=true) {
-		curl_setopt ($this->ch, CURLOPT_POST, 0);
-		return $this->getPage($url, $hasHeader, $hasBody);
-	}	
-	function getPage($url, $hasHeader=true, $hasBody=true) {
-		curl_setopt($this->ch, CURLOPT_HEADER, $hasHeader ? 1 : 0);
-		curl_setopt($this->ch, CURLOPT_NOBODY, $hasBody ? 0 : 1);
-		curl_setopt ($this->ch, CURLOPT_URL, $url);
-		$data = curl_exec ($this->ch);
-		$this->error = curl_error ($this->ch);
-		$this->info = curl_getinfo ($this->ch);
-		return $data;
-	}
-}
+<?php
 
-function fetchCurlCookies($source) {
-	preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $source, $matches);
-	$cookies = array();
-	foreach($matches[1] as $item) {
-		parse_str($item, $cookie);
-		$cookies = array_merge($cookies, $cookie);
-	}
-	return $cookies;
-}
+$headers = array();
+$headers[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0';
+$headers[] = 'Content-Type: application/x-www-form-urlencoded';
+// $headers[] = 'X-CSRFToken: IW5hJCSS5PMvhMqVyoxY94ThjK146u2z';
+// $headers[] = 'X-Instagram-AJAX: 0d4274850943';
+// $headers[] = 'X-IG-App-ID: 936619743392459';
+// $headers[] = 'Cookie: ig_did=3BA3020E-126B-4390-8DA7-567A89FE671F; rur=FRC; csrftoken=IW5hJCSS5PMvhMqVyoxY94ThjK146u2z; mid=XttrrwALAAED7O2SezcNHEsrL616';
 
-function string($length = 15)
-{
-	$characters = '0123456789abcdefghijklmnopqrstuvwxyz';
-	$charactersLength = strlen($characters);
-	$randomString = '';
-	for ($i = 0; $i < $length; $i++) {
-		$randomString .= $characters[rand(0, $charactersLength - 1)];
-	}
-	return $randomString;
-}
+$gas = curl('https://www.instagram.com/accounts/web_create_ajax/attempt/', null, $headers);
+$ig_did = ($gas[2]['ig_did']);
+$csrftoken = ($gas[2]['csrftoken']);
+$rur = ($gas[2]['rur']);
+$mid = ($gas[2]['mid']);
 
-function angka($length = 15)
-{
-	$characters = '0123456789';
-	$charactersLength = strlen($characters);
-	$randomString = '';
-	for ($i = 0; $i < $length; $i++) {
-		$randomString .= $characters[rand(0, $charactersLength - 1)];
-	}
-	return $randomString;
-}
-function fetch_value($str,$find_start,$find_end) {
-	$start = @strpos($str,$find_start);
-	if ($start === false) {
-		return "";
-	}
-	$length = strlen($find_start);
-	$end    = strpos(substr($str,$start +$length),$find_end);
-	return trim(substr($str,$start +$length,$end));
-}
-function instagram_account_creator($socks, $timeout) {
-	$curl = new curl();
-	$curl->cookies('cookies/'.md5($_SERVER['REMOTE_ADDR']).'.txt');
-	$curl->ssl(0, 2);
-	$curl->timeout($timeout);
-	$curl->proxy($socks);
+$headers2 = array();
+$headers2[] = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0';
+$headers2[] = 'Content-Type: application/x-www-form-urlencoded';
+$headers2[] = 'X-CSRFToken: '.$csrftoken.'';
+$headers2[] = 'X-Instagram-AJAX: 0d4274850943';
+$headers2[] = 'X-IG-App-ID: 936619743392459';
+$headers2[] = 'Cookie: ig_did='.$ig_did.'; rur='.$rur.'; csrftoken='.$csrftoken.'; mid='.$mid.'';
 
-	$random_user = $curl->post('https://www.fakepersongenerator.com/Index/generate', 'gender=0&age=0&state=0&city=');
-	preg_match_all('/<div class="info-detail">(.*?)<\/div>/s', $random_user, $info);
-	$mail = fetch_value($info[1][0], "<input type=\"text\" value='","' class='form-control' />");
-	$email = string(4).$mail;
-	$name = fetch_value($random_user, "<p class='text-center name'><b class='click'>","</b></p>");
-	$uname = fetch_value($info[1][50], "<p>","<br>");
-	$username = $uname.string(4);
-	$password = fetch_value($info[1][51], "<p>","<br>");
-	$user_agent = fetch_value($info[1][74], "<p>","</p>");
+echo "++.Email Anda : ";
+$email = trim(fgets(STDIN));
+echo "\n";
 
-
-	$page_signup = $curl->get('https://www.instagram.com/accounts/signup/email');
-	$cookies = fetchCurlCookies($page_signup);
-	$csrftoken = $cookies['csrftoken'];
-	$mid = $cookies['mid'];
-
-	if ($page_signup) {
-
-		$headers = array();
-		$headers[] = "Origin: https://www.instagram.com";
-		$headers[] = "Accept-Language: en-US,en;q=0.9";
-		$headers[] = "X-Requested-With: XMLHttpRequest";
-		$headers[] = "User-Agent: ".$user_agent."";
-		$headers[] = "Cookie: mid=".$mid."; mcd=3; csrftoken=".$csrftoken."; rur=FRC;";
-		$headers[] = "X-Csrftoken: ".$csrftoken."";
-		$headers[] = "X-Instagram-Ajax: 3c390ba4b80b";
-		$headers[] = "Content-Type: application/x-www-form-urlencoded";
-		$headers[] = "Accept: */*";
-		$headers[] = "Referer: https://www.instagram.com/accounts/signup/email";
-		$headers[] = "Authority: www.instagram.com";
-		$curl->header($headers);
-
-		$check_mail = $curl->post('https://www.instagram.com/accounts/check_email/', 'email='.$email.'');
-
-
-		if (strpos($check_mail, '"available": true')) {
-
-			$check_username = $curl->post('https://www.instagram.com/accounts/username_suggestions/', 'email='.$email.'&name='.$name.'');
-
-			if (strpos($check_username, '"status": "ok"')) {
-
-				$create = $curl->post('https://www.instagram.com/accounts/web_create_ajax/', 'email='.$email.'&password='.$password.'&username='.$username.'&first_name='.$name.'&client_id='.$mid.'&seamless_login_enabled=1&tos_version=row');
-
-				if (stripos($create, '"account_created": true')) {
-					echo "SUCCESS CREATE | ".$socks." | ".$email." | ".$username." | ".$password."\n";
-					$data =  "SUCCESS CREATE | ".$socks." | ".$email." | ".$username." | ".$password."\r\n";
-					$date = date('d/y/m');
-					$fh = fopen("success_".$date.".txt", "a");
-					fwrite($fh, $data);
-					fclose($fh);
-				} elseif(strpos($create, 'The IP address you are using has been flagged as an open proxy')) {
-					echo "IP BLOCKED | ".$socks." | ".$email." | ".$username." | ".$password."\n";
-					flush();
-					ob_flush();
-				} else {
-					echo "FAILED | ".$socks." | ".$email." | ".$username." | ".$password."\n";
-					flush();
-					ob_flush();
-				}
-			} else {
-				echo "FAILED | ".$socks." | ".$email." | ".$username." | ".$password."\n";
-				flush();
-				ob_flush();
-			}
-
-		} else {
-			echo "EMAIL ALREADY REGISTER | ".$email."\n";
-			flush();
-			ob_flush();
-		}
-
-
-	} else {
-		$data['httpcode'] = $curl->http_code();
-		$error = $curl->error();
-		echo "".$socks." | ".$error." | Http code : ".$data['httpcode']."\n";
-		flush();
-		ob_flush();
-	}
-
-}
-
-echo "
-=======================================
-      #INSTAGRAM ACCOUNT CREATOR#
-	     (USE PROXY)
-=======================================
-    CREATED BY YUDHA TIRA 
-    Recode By CJDW
-=======================================
-\n";
-
-echo "LIST TOOLS\n";
-echo "[1] INSTAGRAM ACCOUNT CREATOR\n";
-echo "Select tools: ";
-$list = trim(fgets(STDIN));
-if ($list == "") {
-	die ("Cannot be blank!\n");
-}
-
-if ($list == 1) {
-	echo "INSTAGRAM ACCOUNT CREATOR\n";
-	sleep(1);
-	echo "Name file proxy (Ex: proxy.txt): ";
-	$namefile = trim(fgets(STDIN));
-	if ($namefile == "") {
-		die ("Proxy cannot be blank!\n");
-	}
-	echo "Timeout : ";
-	$timeout = trim(fgets(STDIN));
-	if ($timeout == "") {
-		die ("Cannot be blank!\n");
-	}
-	echo "Please wait";
-	sleep(1);
-	echo ".";
-	sleep(1);
-	echo ".";
-	sleep(1);
-	echo ".\n";
-	$file = file_get_contents($namefile) or die ("File not found!\n");
-	$socks = explode("\r\n",$file);
-	$total = count($socks);
-	echo "Total proxy: ".$total."\n";
-
-	foreach ($socks as $value) {
-		instagram_account_creator($value, $timeout);
-	}
-
+$gas2 = curl('https://www.instagram.com/accounts/web_create_ajax/attempt/', 'email='.$email.'&username=&first_name=&opt_into_one_tap=false', $headers2);
+echo "Sedang Menunggu Informasi Email\n";
+echo "\n";
+sleep(1);
+if (strpos($gas2[1], 'Another account is using')) {
+	echo "[1] ++.Email Sudah Terpakai.++\n";
 } else {
-	die ("Command not found!\n");
+	echo "[1] ++.Email Sudah Siap Dipakai.++\n";
 }
 
-?>
+echo "++.First Name : ";
+$first_name = trim(fgets(STDIN));
+echo "++.Last Name : ";
+$last_name = trim(fgets(STDIN));
+echo "\n";
+$gas3 = curl('https://www.instagram.com/accounts/web_create_ajax/attempt/', 'email='.$email.'&username=&first_name='.$first_name.'+'.$last_name.'&opt_into_one_tap=false', $headers2);
+$name = get_between($gas3[1], '"username_suggestions": [', '"],');
+echo "[2] ++.Username Tersedia : $name.++\n";
+
+echo "[3] ++.Username Yang Diinginkan : ";
+$username = trim(fgets(STDIN));
+$gas4 = curl('https://www.instagram.com/accounts/web_create_ajax/attempt/', 'email='.$email.'&username='.$username.'&first_name='.$first_name.'+'.$last_name.'&opt_into_one_tap=false', $headers2);
+$gas5 = curl('https://i.instagram.com/api/v1/accounts/send_verify_email/', 'device_id=XttrrwALAAED7O2SezcNHEsrL616&email='.$email.'', $headers2);
+echo "[4] ++.Code Verification : ";
+$code = trim(fgets(STDIN));
+$gas6 = curl('https://i.instagram.com/api/v1/accounts/check_confirmation_code/', 'code='.$code.'&device_id=XttrrwALAAED7O2SezcNHEsrL616&email='.$email.'', $headers2);
+if (strpos($gas6[1], '"status": "ok"')) {
+	echo "[5] ++.Success Register.++\n";
+} if (strpos($gas6[1], 'Kode tersebut tidak valid. Anda dapat meminta kode yang baru.')) {
+	echo "[5] ++.Otp Salah.++\n";
+}
+$gas7 = curl('https://www.instagram.com/accounts/web_create_ajax/', 'email='.$email.'&enc_password=%23PWD_INSTAGRAM_BROWSER%3A10%3A1591441218%3AAcxQAAmmYC2tz4G%2FnrrY1gfQj1b1N5dmTKbVBnGndEjSC1wKHwFmp02A47HOOW9iWbuh5Gwmvj64Dkh6bNMk%2FTDVNtLzxnMhW7u%2FTaM8E9vtNboBwTlORQ8B703XeAxh0yzCm4JTyGxifXkNYw%3D%3D&username='.$username.'&first_name='.$first_name.'+'.$last_name.'&month=6&day=6&year=2000&client_id=XttrrwALAAED7O2SezcNHEsrL616&seamless_login_enabled=1&tos_version=row&force_sign_up_code=2vZGMwPW', $headers2);
+$link = $name = get_between($gas7[1], '"checkpoint_url": "', '",');
+echo "[6] Checkpoint Url = $link";
+
+function curl($url,$post,$headers)
+{
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_HEADER, 1);
+	if ($headers !== null) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+	if ($post !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+	$result = curl_exec($ch);
+	$header = substr($result, 0, curl_getinfo($ch, CURLINFO_HEADER_SIZE));
+	$body = substr($result, curl_getinfo($ch, CURLINFO_HEADER_SIZE));
+	preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $result, $matches);
+	$cookies = array()
+;	foreach($matches[1] as $item) {
+	  parse_str($item, $cookie);
+	  $cookies = array_merge($cookies, $cookie);
+	}
+	return array (
+	$header,
+	$body,
+	$cookies
+	);
+}
+
+function get_between($string, $start, $end) 
+    {
+        $string = " ".$string;
+        $ini = strpos($string,$start);
+        if ($ini == 0) return "";
+        $ini += strlen($start);
+        $len = strpos($string,$end,$ini) - $ini;
+        return substr($string,$ini,$len);
+    }
